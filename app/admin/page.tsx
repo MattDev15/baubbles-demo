@@ -6,6 +6,7 @@ import { useRequestsStore } from "@/hooks/use-requests-store";
 import { TodaySummary } from "@/components/admin/today-summary";
 import { RequestCard } from "@/components/admin/request-card";
 import { RequestDetailPanel } from "@/components/admin/request-detail-panel";
+import { UpcomingAppointments } from "@/components/admin/upcoming-appointments";
 import { ServiceRequest } from "@/types/request";
 
 export default function AdminPage() {
@@ -24,6 +25,10 @@ export default function AdminPage() {
       <h1 className="font-display text-3xl font-semibold text-ink md:text-4xl">Oggi</h1>
       <div className="mt-4">
         <TodaySummary requests={requests} />
+      </div>
+
+      <div className="mt-10">
+        <UpcomingAppointments requests={requests} />
       </div>
 
       <h2 className="mt-10 font-display text-2xl font-semibold text-ink">Richieste da gestire</h2>

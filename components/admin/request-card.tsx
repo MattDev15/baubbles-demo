@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { Phone, MessageCircle } from "lucide-react";
+import { Phone, MessageCircle, CalendarDays } from "lucide-react";
 import { ServiceRequest, STATUS_LABELS } from "@/types/request";
 import { serviceOptions } from "@/data/services";
 
@@ -20,6 +20,11 @@ function timeAgo(iso: string): string {
   if (hours < 24) return `${hours} ${hours === 1 ? "ora" : "ore"} fa`;
   const days = Math.round(hours / 24);
   return `${days} ${days === 1 ? "giorno" : "giorni"} fa`;
+}
+
+function formatAppointmentDate(iso: string): string {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("it-IT", { day: "numeric", month: "short" });
 }
 
 export function RequestCard({ request, onOpen }: { request: ServiceRequest; onOpen: () => void }) {
@@ -49,6 +54,12 @@ export function RequestCard({ request, onOpen }: { request: ServiceRequest; onOp
           {" · "}
           {timeAgo(request.createdAt)}
         </p>
+        {request.appointment && (
+          <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-forest-dark">
+            <CalendarDays size={12} />
+            {formatAppointmentDate(request.appointment.date)} alle {request.appointment.time}
+          </p>
+        )}
       </div>
       <span className="shrink-0 rounded-full bg-cream-soft px-3 py-1.5 text-xs font-semibold text-ink">
         {STATUS_LABELS[request.status]}

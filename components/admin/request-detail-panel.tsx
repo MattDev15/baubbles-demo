@@ -10,12 +10,12 @@ import { serviceOptions, dayOptions } from "@/data/services";
 const statusFlow: RequestStatus[] = ["NEW", "TO_CONTACT", "CONTACTED", "APPOINTMENT_CONFIRMED", "COMPLETED"];
 
 const STATUS_BADGE_CLASSES: Record<RequestStatus, string> = {
-  NEW: "border-coral bg-coral text-cream",
-  TO_CONTACT: "border-coral/40 bg-coral/15 text-coral-dark",
-  CONTACTED: "border-forest/40 bg-forest/15 text-forest-dark",
-  APPOINTMENT_CONFIRMED: "border-forest bg-forest text-cream",
-  COMPLETED: "border-line bg-cream-soft text-ink-soft",
-  CANCELLED: "border-line bg-ink/10 text-ink-soft",
+  NEW: "bg-coral text-cream",
+  TO_CONTACT: "bg-coral/15 text-coral-dark",
+  CONTACTED: "bg-forest/15 text-forest-dark",
+  APPOINTMENT_CONFIRMED: "bg-forest text-cream",
+  COMPLETED: "bg-cream-soft text-ink-soft",
+  CANCELLED: "bg-ink/10 text-ink-soft",
 };
 
 const contactLabels: Record<PreferredContact, string> = {
@@ -60,6 +60,7 @@ export function RequestDetailPanel({ request, onClose }: { request: ServiceReque
   const [apptTime, setApptTime] = useState(request.appointment?.time ?? "");
   const [apptDuration, setApptDuration] = useState(request.appointment?.estimatedDurationMinutes?.toString() ?? "");
   const [internalNotes, setInternalNotesLocal] = useState(request.internalNotes ?? "");
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
   const [isEditing, setIsEditing] = useState(false);
   const [customerName, setCustomerName] = useState(request.customer.name);
@@ -82,6 +83,16 @@ export function RequestDetailPanel({ request, onClose }: { request: ServiceReque
   const waMessage = `Ciao ${request.customer.name}, ti scriviamo da Baubbles riguardo alla richiesta per ${request.pet.name}.`;
   const waHref = `https://wa.me/39${request.customer.phone.replace(/\s+/g, "")}?text=${encodeURIComponent(waMessage)}`;
 
+  function flashSaved(message: string) {
+    setSavedMessage(message);
+    setTimeout(() => setSavedMessage(null), 2000);
+  }
+
+  function handleStatusChange(status: RequestStatus) {
+    updateStatus(request.id, status);
+    flashSaved("Stato aggiornato");
+  }
+
   function saveAppointment() {
     if (!apptDate || !apptTime) return;
     setAppointment(request.id, {
@@ -89,6 +100,12 @@ export function RequestDetailPanel({ request, onClose }: { request: ServiceReque
       time: apptTime,
       estimatedDurationMinutes: apptDuration ? Number(apptDuration) : undefined,
     });
+    flashSaved("Appuntamento confermato e salvato");
+  }
+
+  function saveInternalNotes() {
+    setInternalNotes(request.id, internalNotes);
+    flashSaved("Nota salvata");
   }
 
   function startEditing() {
@@ -117,6 +134,7 @@ export function RequestDetailPanel({ request, onClose }: { request: ServiceReque
       },
     });
     setIsEditing(false);
+    flashSaved("Dati aggiornati");
   }
 
   function handleDelete() {
@@ -131,16 +149,23 @@ export function RequestDetailPanel({ request, onClose }: { request: ServiceReque
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-ink/30" onClick={onClose}>
       <div className="h-full w-full max-w-md overflow-y-auto bg-cream p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="sticky -top-6 z-10 -mx-6 mb-2 flex items-start justify-between bg-cream px-6 pb-2 pt-1">
+          <div>
             <h2 className="font-display text-2xl font-semibold text-ink">{request.pet.name}</h2>
-            <span className={clsx("rounded-full border px-3 py-1 text-xs font-semibold", STATUS_BADGE_CLASSES[request.status])}>
+            <span className={clsx("mt-1.5 inline-block rounded-full px-2.5 py-1 text-xs font-semibold", STATUS_BADGE_CLASSES[request.status])}>
               {STATUS_LABELS[request.status]}
             </span>
           </div>
-          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-cream-soft" aria-label="Chiudi">
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+            {savedMessage && (
+              <span className="animate-fade-up rounded-full bg-forest/15 px-3 py-1.5 text-xs font-semibold text-forest-dark">
+                ✓ {savedMessage}
+              </span>
+            )}
+            <button onClick={onClose} className="rounded-full p-1.5 hover:bg-cream-soft" aria-label="Chiudi">
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Cliente e animale */}
@@ -266,7 +291,7 @@ export function RequestDetailPanel({ request, onClose }: { request: ServiceReque
             {statusFlow.map((s) => (
               <button
                 key={s}
-                onClick={() => updateStatus(request.id, s)}
+                onClick={() => handleStatusChange(s)}
                 className={clsx(
                   "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
                   request.status === s ? "border-forest bg-forest text-cream" : "border-line bg-white/60 text-ink hover:border-forest/40"
@@ -276,7 +301,7 @@ export function RequestDetailPanel({ request, onClose }: { request: ServiceReque
               </button>
             ))}
             <button
-              onClick={() => updateStatus(request.id, "CANCELLED")}
+              onClick={() => handleStatusChange("CANCELLED")}
               className={clsx(
                 "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
                 request.status === "CANCELLED" ? "border-coral bg-coral text-cream" : "border-line bg-white/60 text-coral-dark hover:border-coral"
@@ -321,11 +346,16 @@ export function RequestDetailPanel({ request, onClose }: { request: ServiceReque
             id="internalNotes"
             value={internalNotes}
             onChange={(e) => setInternalNotesLocal(e.target.value)}
-            onBlur={() => setInternalNotes(request.id, internalNotes)}
             rows={3}
             className="mt-1.5 w-full rounded-xl border border-line bg-white/70 px-4 py-2.5 text-sm outline-none focus:border-forest"
             placeholder="Visibili solo a te..."
           />
+          <button
+            onClick={saveInternalNotes}
+            className="mt-2 rounded-full bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-dark"
+          >
+            Salva nota
+          </button>
         </div>
 
         {/* Eliminazione */}
