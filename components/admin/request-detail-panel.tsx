@@ -2,12 +2,33 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { X, Phone, MessageCircle } from "lucide-react";
-import { RequestStatus, STATUS_LABELS, ServiceRequest } from "@/types/request";
+import { X, Phone, MessageCircle, Pencil, Trash2 } from "lucide-react";
+import { PetSize, PetType, PreferredContact, RequestStatus, STATUS_LABELS, ServiceRequest } from "@/types/request";
 import { useRequestsStore } from "@/hooks/use-requests-store";
 import { serviceOptions, dayOptions } from "@/data/services";
 
 const statusFlow: RequestStatus[] = ["NEW", "TO_CONTACT", "CONTACTED", "APPOINTMENT_CONFIRMED", "COMPLETED"];
+
+const STATUS_BADGE_CLASSES: Record<RequestStatus, string> = {
+  NEW: "border-coral bg-coral text-cream",
+  TO_CONTACT: "border-coral/40 bg-coral/15 text-coral-dark",
+  CONTACTED: "border-forest/40 bg-forest/15 text-forest-dark",
+  APPOINTMENT_CONFIRMED: "border-forest bg-forest text-cream",
+  COMPLETED: "border-line bg-cream-soft text-ink-soft",
+  CANCELLED: "border-line bg-ink/10 text-ink-soft",
+};
+
+const contactLabels: Record<PreferredContact, string> = {
+  PHONE: "Telefonata",
+  WHATSAPP: "WhatsApp",
+  ANY: "Nessuna preferenza",
+};
+
+const petTypeLabels: Record<PetType, string> = { DOG: "Cane", CAT: "Gatto", OTHER: "Altro" };
+
+const petSizeOptions: PetSize[] = ["SMALL", "MEDIUM", "LARGE", "XL"];
+
+const fieldClass = "mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-forest";
 
 function DetailRow({ label, value }: { label: string; value?: string }) {
   if (!value) return null;
@@ -19,15 +40,35 @@ function DetailRow({ label, value }: { label: string; value?: string }) {
   );
 }
 
+function EditField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block text-sm">
+      <span className="text-ink-soft">{label}</span>
+      {children}
+    </label>
+  );
+}
+
 export function RequestDetailPanel({ request, onClose }: { request: ServiceRequest; onClose: () => void }) {
   const updateStatus = useRequestsStore((s) => s.updateStatus);
   const setAppointment = useRequestsStore((s) => s.setAppointment);
   const setInternalNotes = useRequestsStore((s) => s.setInternalNotes);
+  const updateCustomerAndPet = useRequestsStore((s) => s.updateCustomerAndPet);
+  const deleteRequest = useRequestsStore((s) => s.deleteRequest);
 
   const [apptDate, setApptDate] = useState(request.appointment?.date ?? "");
   const [apptTime, setApptTime] = useState(request.appointment?.time ?? "");
   const [apptDuration, setApptDuration] = useState(request.appointment?.estimatedDurationMinutes?.toString() ?? "");
   const [internalNotes, setInternalNotesLocal] = useState(request.internalNotes ?? "");
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [customerName, setCustomerName] = useState(request.customer.name);
+  const [customerPhone, setCustomerPhone] = useState(request.customer.phone);
+  const [preferredContact, setPreferredContact] = useState<PreferredContact>(request.customer.preferredContact);
+  const [petName, setPetName] = useState(request.pet.name);
+  const [petType, setPetType] = useState<PetType>(request.pet.type);
+  const [petBreed, setPetBreed] = useState(request.pet.breed ?? "");
+  const [petSize, setPetSize] = useState<PetSize | "">(request.pet.size ?? "");
 
   const serviceLabels = request.requestedServices
     .map((id) => serviceOptions.find((s) => s.id === id)?.label)
@@ -50,45 +91,155 @@ export function RequestDetailPanel({ request, onClose }: { request: ServiceReque
     });
   }
 
+  function startEditing() {
+    setCustomerName(request.customer.name);
+    setCustomerPhone(request.customer.phone);
+    setPreferredContact(request.customer.preferredContact);
+    setPetName(request.pet.name);
+    setPetType(request.pet.type);
+    setPetBreed(request.pet.breed ?? "");
+    setPetSize(request.pet.size ?? "");
+    setIsEditing(true);
+  }
+
+  function saveEdits() {
+    updateCustomerAndPet(request.id, {
+      customer: {
+        name: customerName.trim(),
+        phone: customerPhone.trim(),
+        preferredContact,
+      },
+      pet: {
+        name: petName.trim(),
+        type: petType,
+        breed: petBreed.trim() || undefined,
+        size: petSize || undefined,
+      },
+    });
+    setIsEditing(false);
+  }
+
+  function handleDelete() {
+    const ok = window.confirm(
+      `Eliminare definitivamente la richiesta di ${request.customer.name} per ${request.pet.name}?`
+    );
+    if (!ok) return;
+    deleteRequest(request.id);
+    onClose();
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-ink/30" onClick={onClose}>
       <div className="h-full w-full max-w-md overflow-y-auto bg-cream p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between">
-          <h2 className="font-display text-2xl font-semibold text-ink">{request.pet.name}</h2>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-display text-2xl font-semibold text-ink">{request.pet.name}</h2>
+            <span className={clsx("rounded-full border px-3 py-1 text-xs font-semibold", STATUS_BADGE_CLASSES[request.status])}>
+              {STATUS_LABELS[request.status]}
+            </span>
+          </div>
           <button onClick={onClose} className="rounded-full p-1.5 hover:bg-cream-soft" aria-label="Chiudi">
             <X size={20} />
           </button>
         </div>
 
-        {/* Cliente */}
-        <div className="mt-5">
+        {/* Cliente e animale */}
+        <div className="mt-5 flex items-center justify-between gap-3">
           <p className="text-sm font-semibold text-ink">Cliente</p>
-          <div className="mt-2 space-y-1">
-            <DetailRow label="Nome" value={request.customer.name} />
-            <DetailRow label="Telefono" value={request.customer.phone} />
-            <DetailRow label="Metodo preferito" value={request.customer.preferredContact === "PHONE" ? "Telefonata" : request.customer.preferredContact === "WHATSAPP" ? "WhatsApp" : "Nessuna preferenza"} />
-            <DetailRow label="Fascia preferita" value={request.customer.preferredTimeOfDay === "MORNING" ? "Mattina" : request.customer.preferredTimeOfDay === "AFTERNOON" ? "Pomeriggio" : request.customer.preferredTimeOfDay === "ANY" ? "Indifferente" : undefined} />
-          </div>
-          <div className="mt-3 flex gap-2">
-            <a href={`tel:${request.customer.phone.replace(/\s+/g, "")}`} className="flex flex-1 items-center justify-center gap-2 rounded-full bg-forest px-4 py-3 text-sm font-semibold text-cream hover:bg-forest-dark">
-              <Phone size={16} /> Chiama
-            </a>
-            <a href={waHref} target="_blank" rel="noopener noreferrer" className="flex flex-1 items-center justify-center gap-2 rounded-full bg-coral px-4 py-3 text-sm font-semibold text-cream hover:bg-coral-dark">
-              <MessageCircle size={16} /> WhatsApp
-            </a>
-          </div>
+          {!isEditing && (
+            <button
+              onClick={startEditing}
+              className="flex items-center gap-1.5 rounded-full border border-line bg-white/60 px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-forest/40"
+            >
+              <Pencil size={14} /> Modifica
+            </button>
+          )}
         </div>
 
-        {/* Animale */}
-        <div className="mt-6">
-          <p className="text-sm font-semibold text-ink">Animale</p>
-          <div className="mt-2 space-y-1">
-            <DetailRow label="Nome" value={request.pet.name} />
-            <DetailRow label="Tipo" value={request.pet.type === "DOG" ? "Cane" : request.pet.type === "CAT" ? "Gatto" : "Altro"} />
-            <DetailRow label="Razza" value={request.pet.breed} />
-            <DetailRow label="Taglia" value={request.pet.size} />
+        {isEditing ? (
+          <div className="mt-3 space-y-3 rounded-2xl border border-forest/30 bg-white/60 p-4">
+            <EditField label="Nome cliente">
+              <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} className={fieldClass} />
+            </EditField>
+            <EditField label="Telefono">
+              <input type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} className={fieldClass} />
+            </EditField>
+            <EditField label="Metodo preferito">
+              <select value={preferredContact} onChange={(e) => setPreferredContact(e.target.value as PreferredContact)} className={fieldClass}>
+                {(Object.keys(contactLabels) as PreferredContact[]).map((c) => (
+                  <option key={c} value={c}>{contactLabels[c]}</option>
+                ))}
+              </select>
+            </EditField>
+
+            <p className="pt-1 text-sm font-semibold text-ink">Animale</p>
+            <EditField label="Nome animale">
+              <input value={petName} onChange={(e) => setPetName(e.target.value)} className={fieldClass} />
+            </EditField>
+            <EditField label="Tipo">
+              <select value={petType} onChange={(e) => setPetType(e.target.value as PetType)} className={fieldClass}>
+                {(Object.keys(petTypeLabels) as PetType[]).map((t) => (
+                  <option key={t} value={t}>{petTypeLabels[t]}</option>
+                ))}
+              </select>
+            </EditField>
+            <EditField label="Razza">
+              <input value={petBreed} onChange={(e) => setPetBreed(e.target.value)} className={fieldClass} />
+            </EditField>
+            <EditField label="Taglia">
+              <select value={petSize} onChange={(e) => setPetSize(e.target.value as PetSize | "")} className={fieldClass}>
+                <option value="">Non indicata</option>
+                {petSizeOptions.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </EditField>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={saveEdits}
+                disabled={!customerName.trim() || !customerPhone.trim() || !petName.trim()}
+                className="flex-1 rounded-full bg-forest px-4 py-2.5 text-sm font-semibold text-cream transition-colors hover:bg-forest-dark disabled:opacity-40"
+              >
+                Salva modifiche
+              </button>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="rounded-full border border-line bg-white/60 px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:border-forest/40"
+              >
+                Annulla
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="mt-2 space-y-1">
+              <DetailRow label="Nome" value={request.customer.name} />
+              <DetailRow label="Telefono" value={request.customer.phone} />
+              <DetailRow label="Metodo preferito" value={contactLabels[request.customer.preferredContact]} />
+              <DetailRow label="Fascia preferita" value={request.customer.preferredTimeOfDay === "MORNING" ? "Mattina" : request.customer.preferredTimeOfDay === "AFTERNOON" ? "Pomeriggio" : request.customer.preferredTimeOfDay === "ANY" ? "Indifferente" : undefined} />
+            </div>
+            <div className="mt-3 flex gap-2">
+              <a href={`tel:${request.customer.phone.replace(/\s+/g, "")}`} className="flex flex-1 items-center justify-center gap-2 rounded-full bg-forest px-4 py-3 text-sm font-semibold text-cream hover:bg-forest-dark">
+                <Phone size={16} /> Chiama
+              </a>
+              <a href={waHref} target="_blank" rel="noopener noreferrer" className="flex flex-1 items-center justify-center gap-2 rounded-full bg-coral px-4 py-3 text-sm font-semibold text-cream hover:bg-coral-dark">
+                <MessageCircle size={16} /> WhatsApp
+              </a>
+            </div>
+
+            {/* Animale */}
+            <div className="mt-6">
+              <p className="text-sm font-semibold text-ink">Animale</p>
+              <div className="mt-2 space-y-1">
+                <DetailRow label="Nome" value={request.pet.name} />
+                <DetailRow label="Tipo" value={petTypeLabels[request.pet.type]} />
+                <DetailRow label="Razza" value={request.pet.breed} />
+                <DetailRow label="Taglia" value={request.pet.size} />
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Richiesta */}
         <div className="mt-6">
@@ -175,6 +326,17 @@ export function RequestDetailPanel({ request, onClose }: { request: ServiceReque
             className="mt-1.5 w-full rounded-xl border border-line bg-white/70 px-4 py-2.5 text-sm outline-none focus:border-forest"
             placeholder="Visibili solo a te..."
           />
+        </div>
+
+        {/* Eliminazione */}
+        <div className="mt-8 border-t border-line pt-5">
+          <button
+            onClick={handleDelete}
+            className="flex w-full items-center justify-center gap-2 rounded-full border border-coral px-4 py-2.5 text-sm font-semibold text-coral-dark transition-colors hover:bg-coral hover:text-cream"
+          >
+            <Trash2 size={16} /> Elimina richiesta
+          </button>
+          <p className="mt-2 text-center text-xs text-ink-soft">L&apos;eliminazione è definitiva e non può essere annullata.</p>
         </div>
       </div>
     </div>

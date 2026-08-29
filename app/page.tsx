@@ -1,6 +1,5 @@
 import { Phone, MessageCircle, PawPrint } from "lucide-react";
 import { Container } from "@/components/ui/container";
-import { LinkButton } from "@/components/ui/button";
 import { PetPlaceholder } from "@/components/ui/pet-placeholder";
 import { brand } from "@/data/brand";
 import { buildWhatsappUrl } from "@/lib/whatsapp";
@@ -58,20 +57,18 @@ export default function Home() {
               </div>
             </a>
 
-            <LinkButton
+            <a
               href="/richiesta"
-              className="!flex-col !items-start gap-3 rounded-3xl !bg-cream-soft !text-ink border border-forest/30 p-6 text-left hover:!bg-forest hover:!text-cream"
+              className="flex flex-col items-start gap-3 rounded-3xl border border-forest bg-forest p-6 text-cream transition-colors hover:bg-forest-dark"
             >
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-forest text-cream">
-                <PawPrint size={20} />
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-cream/15">
+                <PawPrint size={20} className="text-cream" />
               </span>
-              <span>
-                <span className="block font-display text-lg font-semibold">Lascia una richiesta</span>
-                <span className="mt-1 block text-sm opacity-80">
-                  Lasciaci le informazioni principali. Ti ricontatteremo appena possibile.
-                </span>
-              </span>
-            </LinkButton>
+              <div>
+                <p className="font-display text-lg font-semibold">Lascia una richiesta</p>
+                <p className="mt-1 text-sm text-cream/80">Lasciaci le informazioni principali. Ti ricontatteremo appena possibile.</p>
+              </div>
+            </a>
           </div>
         </Container>
       </section>

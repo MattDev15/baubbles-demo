@@ -14,6 +14,11 @@ type RequestsState = {
     appointment: { date: string; time: string; estimatedDurationMinutes?: number }
   ) => void;
   setInternalNotes: (id: string, notes: string) => void;
+  updateCustomerAndPet: (
+    id: string,
+    patch: { customer?: Partial<ServiceRequest["customer"]>; pet?: Partial<ServiceRequest["pet"]> }
+  ) => void;
+  deleteRequest: (id: string) => void;
 };
 
 export const useRequestsStore = create<RequestsState>()(
@@ -39,6 +44,22 @@ export const useRequestsStore = create<RequestsState>()(
         set((state) => ({
           requests: state.requests.map((r) => (r.id === id ? { ...r, internalNotes } : r)),
         })),
+
+      updateCustomerAndPet: (id, patch) =>
+        set((state) => ({
+          requests: state.requests.map((r) =>
+            r.id === id
+              ? {
+                  ...r,
+                  customer: { ...r.customer, ...patch.customer },
+                  pet: { ...r.pet, ...patch.pet },
+                }
+              : r
+          ),
+        })),
+
+      deleteRequest: (id) =>
+        set((state) => ({ requests: state.requests.filter((r) => r.id !== id) })),
     }),
     { name: "baubbles-requests-store" }
   )
